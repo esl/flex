@@ -14,7 +14,7 @@ defmodule Influx.Mixfile do
 
   def application do
     [
-      extra_applications: [:logger],
+      applications: [:logger, :httpoison, :poison],
       mod: {Influx.Application, []}
     ]
   end
