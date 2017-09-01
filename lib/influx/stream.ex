@@ -12,7 +12,7 @@ defmodule Influx.Stream do
       iex(1)> Influx.Stream.new_stream("tide-erlang-solutions.com")
       #Function<51.122079345/2 in Stream.resource/3>
   """
-  @spec new_stream(String.t) :: Stream.t
+  @spec new_stream(String.t) :: Enum.t
   def new_stream(url) do
     Stream.resource(init_fun(url), next_fun(), after_fun())
   end

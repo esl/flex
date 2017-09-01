@@ -147,7 +147,7 @@ defmodule Influx.Datapoints do
       }
 
   """
-  @spec add_tags_to_datapoint(datapoint, datapoints) :: datapoints_with_tags
+  @spec add_tags_to_datapoint(datapoint, datapoints) :: datapoint_with_tags
   def add_tags_to_datapoint(measurement, tags_for_measurements) do
     name = measurement["name"]
     tags =
@@ -241,7 +241,7 @@ defmodule Influx.Datapoints do
   #
   # Extra tags is already formatted as part of Line Protocol
 
-  @spec make_line_protocol(map, String.t, [String.t], String.t) :: [String.t]
+  @spec make_line_protocol(map, String.t, [String.t], String.t) :: String.t
   defp make_line_protocol(data, measurement_name, tags, extra_tags) do
     {timestamp, data} = Map.pop(data, "time")
     {tags, fields} = Enum.split_with(data, &(is_tag?(&1, tags)))

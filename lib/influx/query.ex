@@ -129,8 +129,7 @@ defmodule Influx.Query do
                  <> "#{where}"
                  <> "#{group_by}"}
     else
-      {:error, reason} -> {:error, reason}
-      any -> {:error, any}
+      {:error, _} = error -> error
     end
   end
 
@@ -228,7 +227,6 @@ defmodule Influx.Query do
       false -> {:error, {:invalid_op, comparator}}
     end
   end
-
   defp parse_where({field, value, comparator}) do
     case comparator in @valid_comparators do
       true -> "#{field} #{comparator} #{escape_val(value, "'")}"

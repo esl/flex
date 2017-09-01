@@ -57,9 +57,8 @@ defmodule Influx.API do
   Required parameters: `:db`, `:epoch`, `:host`
   Optional parameters: `:pretty`, `:chunked`, :`chunk_size`
   """
-  @spec stream(String.t, params) :: Stream.t | {:error, any}
+  @spec stream(String.t, params) :: Enum.t | {:error, any}
   def stream(query, params) do
-    params = Enum.into(params, %{})
     required = [:db, :epoch, :host]
     optional = [:pretty, :chunked, :chunk_size]
     case check_params(params, required, optional) do
@@ -81,7 +80,6 @@ defmodule Influx.API do
   """
   @spec query(String.t, params) :: {:ok, HTTPoison.Response.t} | {:error, any}
   def query(query, params) do
-    params = Enum.into(params, %{})
     required = [:db, :epoch, :host]
     optional = [:pretty, :chunked, :chunk_size]
     do_get_to_read_endpoint(query, params, required, optional)
@@ -111,7 +109,6 @@ defmodule Influx.API do
   """
   @spec write(String.t, params) :: {:ok, HTTPoison.Response.t} | {:error, any}
   def write(data, params) do
-    params = Enum.into(params, %{})
     required = [:db, :epoch, :host]
     optional = [:pretty]
     do_post_to_write_endpoint(data, params, required, optional)
@@ -133,7 +130,6 @@ defmodule Influx.API do
   @spec create_db(String.t, params) :: {:ok, HTTPoison.Response.t}
                                      | {:error, any}
   def create_db(db_name, params) do
-    params = Enum.into(params, %{})
     required = [:host]
     optional = []
     query = "CREATE DATABASE \"#{db_name}\""
@@ -148,7 +144,6 @@ defmodule Influx.API do
   @spec delete_database(String.t, params) :: {:ok, HTTPoison.Response.t}
                                            | {:error, any}
   def delete_database(db, params) do
-    params = Enum.into(params, %{})
     required = [:host]
     optional = [:pretty, :chunked, :chunk_size]
     query = "DROP DATABASE \"#{db}\""
@@ -168,7 +163,6 @@ defmodule Influx.API do
   """
   @spec get_measurements(params) :: {:ok, HTTPoison.Response.t} | {:error, any}
   def get_measurements(params) do
-    params = Enum.into(params, %{})
     required = [:db, :host]
     optional = [:pretty, :chunked, :chunk_size]
     query = "SHOW MEASUREMENTS"
@@ -214,7 +208,6 @@ defmodule Influx.API do
   """
   @spec get_databases(params) :: {:ok, HTTPoison.Response.t} | {:error, any}
   def get_databases(params) do
-    params = Enum.into(params, %{})
     required = [:host]
     optional = [:pretty, :chunked, :chunk_size]
     query = "SHOW DATABASES"
@@ -228,7 +221,6 @@ defmodule Influx.API do
   @spec do_get_to_read_endpoint(String.t, params, [atom], [atom])
   :: {:ok, HTTPoison.Response.t} | {:error, any}
   defp do_get_to_read_endpoint(query, params, required, optional) do
-    params = Enum.into(params, %{})
     case check_params(params, required, optional) do
       {:ok, params} ->
         url = form_read_url(query, params)
@@ -285,9 +277,9 @@ defmodule Influx.API do
   # Parameters checking functions
   ###
 
-  @spec check_params(map, params, params) :: {:ok, map} | {:error, Keyword.t}
+  @spec check_params(params, [atom], [atom]) :: {:ok, map} | {:error, Keyword.t}
   defp check_params(params, required, optional) do
-    given_params = Map.keys(params)
+    given_params = params |> Enum.into(%{}) |> Map.keys()
     missing = get_missing_params(given_params, required)
     bad = get_bad_params(given_params, required ++ optional)
     case missing do
