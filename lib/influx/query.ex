@@ -141,21 +141,6 @@ defmodule Influx.Query do
     Enum.reduce(string_queries, &stack_queries/2)
   end
 
-  @doc """
-  This function builds `Query` struct from given `TestInstance`.
-
-  It simply takes out `:test_start` and `:test_end` fields from `TestInstance`
-  and passes it to `:from` and `:to` fields to `Query`.
-  """
-  @spec from_test_instance(Tide.TestInstance.t, Enum.t) :: __MODULE__.t
-  def from_test_instance(test_instance, opts \\ []) do
-    %__MODULE__{
-      from: test_instance.test_start <> "ms",
-      to: test_instance.test_end <> "ms",
-    }
-    |> struct!(opts)
-  end
-
   # Private functions
 
   # InfluxDB HTTP API allows to send multiple queries at once by delimiting them
