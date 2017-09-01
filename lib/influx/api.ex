@@ -47,14 +47,12 @@ defmodule Influx.API do
   @doc """
   Performs a query through InfluxDB HTTP API. The response is given as a Stream.
 
-
   The query is given as a string in the first parameter. It makes sense to use this
   function only for queries expected to return big amount of data.
 
   Also this function makes sense only with `chunked: true, chunked_size: size`
   parmeters. If it is not given, result will be returned as a single element, so
   there are no advantages of Streams.
-
 
   Required parameters: `:db`, `:epoch`, `:host`
   Optional parameters: `:pretty`, `:chunked`, :`chunk_size`

@@ -12,7 +12,7 @@ defmodule Influx.Stream.Supervisor do
     Supervisor.start_child(__MODULE__, [url])
   end
 
-  def start_link() do
+  def start_link do
     Supervisor.start_link(__MODULE__, [], name: __MODULE__)
   end
 

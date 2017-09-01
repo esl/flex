@@ -158,8 +158,6 @@ defmodule Influx.APITest do
     assert length(data) == length(times)
   end
 
-
-
   test "Queries with `from` and `to` can be performed",
   %{influx_host: host, present_db: db} do
     # given

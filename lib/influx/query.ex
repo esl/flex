@@ -109,8 +109,6 @@ defmodule Influx.Query do
                            group_by: [String.t]
   }
 
-
-
   @doc """
   This function builds InfluxDB Query from a `Query` struct.
 
@@ -120,7 +118,7 @@ defmodule Influx.Query do
   NOTE: Module is in early development and may build incorrect queries!
   """
   @spec build_query(__MODULE__.t) :: String.t | {:error, any}
-  def build_query(query = %__MODULE__{}) do
+  def build_query(%__MODULE__{} = query) do
     with {:ok, query}       <- add_timestamps_to_where(query),
          {:ok, measurement} <- build_measurement(query),
          {:ok, fields}      <- build_fields(query),
@@ -174,21 +172,21 @@ defmodule Influx.Query do
   #
   # Theese fields are just shortends - e.g. we know that value `from` will be
   # compared to a time field in query, with greater comparator: `:>`
-  defp add_timestamps_to_where(query = %__MODULE__{}) do
+  defp add_timestamps_to_where(%__MODULE__{} = query) do
     query = maybe_add_from(query) |> maybe_add_to()
     {:ok, query}
   end
 
-  defp maybe_add_from(query = %__MODULE__{from: nil}), do: query
-  defp maybe_add_from(query = %__MODULE__{from: from, where: wheres}) do
+  defp maybe_add_from(%__MODULE__{from: nil} = query), do: query
+  defp maybe_add_from(%__MODULE__{from: from, where: wheres} = query) do
     where = [{"time", {:expr, from}, :>} | wheres]
     query
     |> Map.put(:where, where)
     |> Map.put(:from, nil)
   end
 
-  defp maybe_add_to(query = %__MODULE__{to: nil}), do: query
-  defp maybe_add_to(query = %__MODULE__{to: to, where: wheres}) do
+  defp maybe_add_to(%__MODULE__{to: nil} = query), do: query
+  defp maybe_add_to(%__MODULE__{to: to, where: wheres} = query) do
     where = [{"time", {:expr, to}, :<} | wheres]
     query
     |> Map.put(:where, where)
@@ -238,7 +236,6 @@ defmodule Influx.Query do
     end
   end
 
-
   defp build_group_by(%__MODULE__{group_by: nil}), do: {:ok, ""}
   defp build_group_by(%__MODULE__{group_by: "*"}), do: {:ok, " GROUP BY *"}
   defp build_group_by(%__MODULE__{group_by: group_by, where: wheres}) do
@@ -259,7 +256,8 @@ defmodule Influx.Query do
   defp parse_group_by("time(" <> _ = time, wheres) do
     # we need to check for time condition where clause, becaouse groupping
     # by time in disallowed without giving timerange.
-    case Enum.any?(wheres, fn ({"time", _, _}) -> true; (_) -> false end) do
+    case Enum.any?(wheres, fn ({"time", _, _}) -> true
+                              (_)              -> false end) do
       true -> time
       false -> {:error, "missing time condition in where statement"}
     end

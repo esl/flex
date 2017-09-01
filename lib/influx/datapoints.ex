@@ -51,7 +51,7 @@ defmodule Influx.Datapoints do
                     fn(r) -> Enum.map(r["series"],
                                       fn(s) -> %{"target" => get_name(s),
                                         "datapoints" => make_datapoints_values(
-                                          s["columns"],s["values"])}
+                                          s["columns"], s["values"])}
                                       end)
                     end)
     end
@@ -119,7 +119,6 @@ defmodule Influx.Datapoints do
     |> Enum.flat_map(&parse_statement/1)
   end
 
-
   @doc """
   This function adds to datapoint map another field `tags`.
 
@@ -156,7 +155,6 @@ defmodule Influx.Datapoints do
       |> get_in([Access.key("data", []), Access.all(), "tagKey"])
     Map.put(measurement, "tags", tags)
   end
-
 
   @doc """
   Function escapes characters disallowed in InfluxDB Line Protocol.

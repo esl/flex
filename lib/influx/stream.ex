@@ -26,7 +26,7 @@ defmodule Influx.Stream do
   end
 
   # Function called where there is demand for new element
-  defp next_fun() do
+  defp next_fun do
     fn (pid) ->
       case Worker.get_chunk(pid) do
         {:chunk, chunk} -> {[chunk], pid}
@@ -36,7 +36,7 @@ defmodule Influx.Stream do
   end
 
   # Function called when stream is finished, used for clean_up
-  defp after_fun() do
+  defp after_fun do
     fn (pid) ->
       Worker.stop(pid)
     end
