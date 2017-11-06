@@ -170,6 +170,22 @@ defmodule Influx.Datapoints do
 
   def escape_chars(value), do: value
 
+  @doc """
+  Functions returns string representation of given value in InfluxDB Line
+  Protocol format.
+
+  Data types:
+    - Float - 82
+    - Integer - 82i
+    - String - "some string"
+    - Boolean - t, T, true, True, TRUE, f, F, false, False, FALSE
+
+  """
+  def escape_field(value) when is_integer(value), do: "#{value}i"
+  def escape_field(value) when is_float(value) or is_boolean(value),
+    do: "#{value}"
+  def escape_field(value) when is_binary(value), do: "\"#{value}\""
+
   ###
   # Private functions
   ###
@@ -245,8 +261,8 @@ defmodule Influx.Datapoints do
   defp make_line_protocol(data, measurement_name, tags, extra_tags) do
     {timestamp, data} = Map.pop(data, "time")
     {tags, fields} = Enum.split_with(data, &(is_tag?(&1, tags)))
-    tags = tuples_to_line(tags)
-    fields = tuples_to_line(fields)
+    tags = tuples_to_line(tags, :tag)
+    fields = tuples_to_line(fields, :field)
     tags = [tags, extra_tags] |> Enum.filter(&(&1 != "")) |> Enum.join(",")
     case tags do
       ""   -> "#{measurement_name} #{fields} #{timestamp}"
@@ -258,10 +274,15 @@ defmodule Influx.Datapoints do
 
   # part of making line protocol:
   # [{"a", "b"}, {"c", "d"}] -> "a=b,c=d"
-  defp tuples_to_line(tuples) do
+  defp tuples_to_line(tuples, :tag) do
     tuples
     |> Enum.map(fn ({k, v}) -> "#{k}=#{escape_chars(v)}" end)
     |> Enum.join(",")
   end
 
+  defp tuples_to_line(tuples, :field) do
+    tuples
+    |> Enum.map(fn ({k, v}) -> "#{k}=#{escape_field(v)}" end)
+    |> Enum.join(",")
+  end
 end
