@@ -47,8 +47,8 @@ defmodule Influx.DatapointsTest do
 
     lines = Datapoints.to_line_protocol(m)
     assert 2 = length(lines)
-    assert "m key=value 12345" in lines
-    assert "m,some_tag=some_tag_value key=value 12346" in lines
+    assert "m key=\"value\" 12345" in lines
+    assert "m,some_tag=some_tag_value key=\"value\" 12346" in lines
 
   end
 
