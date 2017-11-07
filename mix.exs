@@ -21,12 +21,12 @@ defmodule Influx.Mixfile do
 
   defp deps do
     [
-      {:httpoison, "~> 0.9.0"},
-      {:poison, "~> 2.0"},
-      {:ex_doc, "~> 0.16.2", only: :dev},
-      {:earmark, "~> 1.0", only: :dev},
-      {:dialyxir, "~> 0.4", only: :dev},
-      {:credo, "~> 0.5", only: :dev},
+      {:httpoison, "~> 0.13.0"},
+      {:poison, "~> 2.2"},
+      {:ex_doc, "~> 0.18.1", only: :dev},
+      {:earmark, "~> 1.2.2", only: :dev},
+      {:dialyxir, "~> 0.5.1", only: :dev},
+      {:credo, "~> 0.8.8", only: :dev},
     ]
   end
 end
