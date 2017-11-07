@@ -78,14 +78,22 @@ defmodule Influx.Datapoints do
               ]
     "tags" => ["node"]
    }
+
   ```
+
+  Parameters
+    - `:extra_tags` - allows to pass extra tags, which will be added to
+       metric while converting.
+    - `:cast` - see `escape_field/2`.
+
   """
-  @spec to_line_protocol(datapoint, String.t) :: Enumerable.t
-  def to_line_protocol(measurement, extra_tags \\ "") do
+  @spec to_line_protocol(datapoint, Keyword.t) :: Enumerable.t
+  def to_line_protocol(measurement, params \\ []) do
     name = measurement["name"]
     tags = Map.get(measurement, "tags", [])
+    {extra_tags, params} = Keyword.pop(params, :extra_tags, "")
     measurement["data"]
-    |> Enum.map(&(make_line_protocol(&1, name, tags, extra_tags)))
+    |> Enum.map(&(make_line_protocol(&1, name, tags, extra_tags, params)))
   end
 
   @doc """
@@ -180,11 +188,22 @@ defmodule Influx.Datapoints do
     - String - "some string"
     - Boolean - t, T, true, True, TRUE, f, F, false, False, FALSE
 
+  Parameters
+    - `:cast` - possible values: `:int_to_float`, `:float_to_int`. Allows to
+      cast Elixir data types into different InfluxDB data types.
   """
-  def escape_field(value) when is_integer(value), do: "#{value}i"
-  def escape_field(value) when is_float(value) or is_boolean(value),
+  @spec escape_field(term, Keyword.t) :: String.t
+  def escape_field(value, params), do: do_escape_field(value, params[:cast])
+
+  defp do_escape_field(value, :int_to_float) when is_integer(value),
     do: "#{value}"
-  def escape_field(value) when is_binary(value), do: "\"#{value}\""
+  defp do_escape_field(value, _) when is_integer(value),
+    do: "#{value}i"
+  defp do_escape_field(value, :float_to_int) when is_float(value),
+    do: "#{round(value)}i"
+  defp do_escape_field(value, _) when is_float(value) or is_boolean(value),
+    do: "#{value}"
+  defp do_escape_field(value, _) when is_binary(value), do: "\"#{value}\""
 
   ###
   # Private functions
@@ -257,12 +276,12 @@ defmodule Influx.Datapoints do
   #
   # Extra tags is already formatted as part of Line Protocol
 
-  @spec make_line_protocol(map, String.t, [String.t], String.t) :: String.t
-  defp make_line_protocol(data, measurement_name, tags, extra_tags) do
+  @spec make_line_protocol(map, String.t, [String.t], String.t, Keyword.t) :: String.t
+  defp make_line_protocol(data, measurement_name, tags, extra_tags, params) do
     {timestamp, data} = Map.pop(data, "time")
     {tags, fields} = Enum.split_with(data, &(is_tag?(&1, tags)))
-    tags = tuples_to_line(tags, :tag)
-    fields = tuples_to_line(fields, :field)
+    tags = tuples_to_line(tags, :tag, params)
+    fields = tuples_to_line(fields, :field, params)
     tags = [tags, extra_tags] |> Enum.filter(&(&1 != "")) |> Enum.join(",")
     case tags do
       ""   -> "#{measurement_name} #{fields} #{timestamp}"
@@ -274,15 +293,15 @@ defmodule Influx.Datapoints do
 
   # part of making line protocol:
   # [{"a", "b"}, {"c", "d"}] -> "a=b,c=d"
-  defp tuples_to_line(tuples, :tag) do
+  defp tuples_to_line(tuples, :tag, _) do
     tuples
     |> Enum.map(fn ({k, v}) -> "#{k}=#{escape_chars(v)}" end)
     |> Enum.join(",")
   end
 
-  defp tuples_to_line(tuples, :field) do
+  defp tuples_to_line(tuples, :field, params) do
     tuples
-    |> Enum.map(fn ({k, v}) -> "#{k}=#{escape_field(v)}" end)
+    |> Enum.map(fn ({k, v}) -> "#{k}=#{escape_field(v, params)}" end)
     |> Enum.join(",")
   end
 end
