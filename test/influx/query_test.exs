@@ -39,7 +39,7 @@ defmodule Influx.QueryTest do
   end
 
   test "Where can hold simple conditions" do
-    query = %Query{measurements: ["m"], where: [{"node", "node-1", :=}]}
+    query = %Query{measurements: ["m"], where: [[{"node", "node-1", :=}]]}
 
     assert {:ok, query} = Query.build_query(query)
     assert [_, "node = 'node-1'"] = String.split(query, "WHERE ")
@@ -47,7 +47,7 @@ defmodule Influx.QueryTest do
 
   test "Where can hold expressions" do
     query = %Query{measurements: ["m"],
-                   where: [{"time", {:expr, "now() - 2h"}, :<}]}
+                   where: [[{"time", {:expr, "now() - 2h"}, :<}]]}
 
     assert {:ok, query} = Query.build_query(query)
     assert [_, "time < now() - 2h"] = String.split(query, "WHERE ")
@@ -56,23 +56,37 @@ defmodule Influx.QueryTest do
   for unit <- ["u", "µ", "ms", "s", "m", "h", "d", "w"] do
     test "Duration unit '#{unit}' is not escaped" do
       query = %Query{measurements: ["m"],
-                     where: [{"time", "20#{unquote(unit)}", :<}]}
+                     where: [[{"time", "20#{unquote(unit)}", :<}]]}
 
       assert {:ok, query} = Query.build_query(query)
       assert [_, "time < 20#{unquote(unit)}"] = String.split(query, "WHERE ")
     end
   end
 
-  test "Multiple conditions are joined with AND" do
+  test "Conditions in same list are joined with AND" do
+    query = %Query{measurements: ["m"],
+                   where: [[
+                     {"location", "Cracow", :=},
+                     {"node", "node-1", :=}
+                     ]]}
+
+    assert {:ok, query} = Query.build_query(query)
+    assert [_, where_clause] = String.split(query, "WHERE ")
+    assert "location = 'Cracow' AND node = 'node-1'" = where_clause
+  end
+
+  test "Conditions in different lists are joined with OR" do
     query = %Query{measurements: ["m"],
                    where: [
-                     {"time", {:expr, "now() - 2h"}, :<},
-                     {"node", "node-1", :=}
+                     [{"location", "Cracow", :=}],
+                     [{"node", "node-1", :=}]
                      ]}
 
     assert {:ok, query} = Query.build_query(query)
     assert [_, where_clause] = String.split(query, "WHERE ")
-    assert "time < now() - 2h and node = 'node-1'" = where_clause
+    conditions = String.split(where_clause, " OR ")
+    assert "location = 'Cracow'" in conditions
+    assert "node = 'node-1'" in conditions
   end
 
   test "'from' and 'to' fields are converted into WHERE conditions" do
@@ -82,9 +96,20 @@ defmodule Influx.QueryTest do
                   }
     assert {:ok, query} = Query.build_query(query)
     assert [_, where_clause] = String.split(query, "WHERE ")
-    conditions = String.split(where_clause, " and ")
+    conditions = String.split(where_clause, " AND ")
     assert "time > now() - 2d" in conditions
     assert "time < now() - 1d" in conditions
+  end
+
+  test "'from' and 'to' fields are join with other WHERE clauses with AND" do
+    query = %Query{measurements: ["m"],
+                   from: "now() - 2d",
+                   to: "now() - 1d",
+                   where: [[{"node", "node-1", :=}]]
+                  }
+    assert {:ok, query} = Query.build_query(query)
+    assert [_, where_clause] = String.split(query, "WHERE ")
+    assert where_clause =~ "(time > now() - 2d AND time < now() - 1d) AND"
   end
 
   test "Query can hold GROUP BY" do
