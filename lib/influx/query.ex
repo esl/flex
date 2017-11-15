@@ -191,28 +191,72 @@ defmodule Influx.Query do
 
   defp build_where(%__MODULE__{where: nil}), do: {:ok, ""}
   defp build_where(%__MODULE__{where: where}) do
-    {valid, invalid} = where
-                   |> Enum.map(&parse_where/1)
-                   |> Enum.split_with(&valid?/1)
-    cond do
-      valid != [] and invalid == [] ->
-        {:ok, " WHERE " <> Enum.join(valid, " and ")}
-      valid == [] and invalid == [] ->
-        {:ok, ""}
-      true ->
-        {:error, invalid}
+    {time_clauses, where} = pop_time_clauses(where)
+    results = Enum.map(where, &parse_and_group/1)
+              |> validate()
+    with {:ok, conds} <- results,
+      conds = Enum.join(conds, " OR "),
+      {:ok, time_clauses} <- form_time_clause(time_clauses),
+      {:ok, where_clause} <- join_time_with_clauses(conds, time_clauses),
+      {:empty, false} <- {:empty, where_clause == ""}
+    do
+      {:ok, "WHERE #{where_clause}"}
+    else
+      {:empty, true} -> {:ok, ""}
+      error -> error
+    end
+  end
+
+  defp pop_time_clauses(where) do
+    time_clauses = List.flatten(where) |> Enum.filter(&is_time_clause?/1)
+    where = Enum.map(where,
+                     fn(x) ->
+                       Enum.reject(x, &is_time_clause?/1)
+                     end)
+    {time_clauses, where}
+  end
+
+  defp is_time_clause?({"time", _, _}), do: true
+  defp is_time_clause?(_), do: false
+
+  defp form_time_clause( time_clauses) do
+    times = Enum.map(time_clauses, &parse_single_condition/1)
+            |> validate()
+    case times do
+      {:ok, []} -> {:ok, ""}
+      {:ok, results} -> {:ok, "#{Enum.join(results," AND ")}"}
+      error -> error
+    end
+  end
+
+  defp join_time_with_clauses(conds, ""),
+    do: {:ok, conds}
+
+  defp join_time_with_clauses("", time_clauses),
+    do: {:ok, time_clauses}
+
+  defp join_time_with_clauses(conds, time_clauses),
+    do: {:ok, "(#{time_clauses}) AND (#{conds})"}
+
+  defp parse_and_group(and_joined_conditions) do
+    results = Enum.map(and_joined_conditions, &parse_single_condition/1)
+              |> validate()
+    case results do
+      {:ok, []} -> ""
+      {:ok, results} -> Enum.join(results, " AND ")
+      error -> error
     end
   end
 
   @valid_comparators [:=, :<, :<=, :>, :>=, :"=~", :"!~"]
 
-  defp parse_where({field, {:expr, expression}, comparator}) do
+  defp parse_single_condition({field, {:expr, expression}, comparator}) do
     case comparator in @valid_comparators do
       true -> "#{field} #{comparator} #{expression}"
       false -> {:error, {:invalid_op, comparator}}
     end
   end
-  defp parse_where({field, value, comparator}) do
+  defp parse_single_condition({field, value, comparator}) do
     case comparator in @valid_comparators do
       true -> "#{field} #{comparator} #{escape_val(value, "'")}"
       false -> {:error, {:invalid_op, comparator}}
