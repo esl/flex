@@ -156,26 +156,26 @@ defmodule Influx.Query do
   #
   # Theese fields are just shortends - e.g. we know that value `from` will be
   # compared to a time field in query, with greater comparator: `:>`
-  defp add_timestamps_to_where(%__MODULE__{} = query) do
-    query = maybe_add_from(query) |> maybe_add_to()
-    {:ok, query}
+  defp add_timestamps_to_where(%__MODULE__{where: wheres} = query) do
+    time_clause = [maybe_get_from(query), maybe_get_to(query)]
+    query = Map.put(query, :from, nil)
+            |> Map.put(:to, nil)
+    case List.flatten(time_clause) do
+      [] ->
+        {:ok, query}
+      time_clause ->
+        query = Map.put(query, :where, [time_clause | wheres])
+        {:ok, query}
+    end
   end
 
-  defp maybe_add_from(%__MODULE__{from: nil} = query), do: query
-  defp maybe_add_from(%__MODULE__{from: from, where: wheres} = query) do
-    where = [{"time", {:expr, from}, :>} | wheres]
-    query
-    |> Map.put(:where, where)
-    |> Map.put(:from, nil)
-  end
+  defp maybe_get_from(%__MODULE__{from: nil}), do: []
+  defp maybe_get_from(%__MODULE__{from: from}),
+    do: [{"time", {:expr, from}, :>}]
 
-  defp maybe_add_to(%__MODULE__{to: nil} = query), do: query
-  defp maybe_add_to(%__MODULE__{to: to, where: wheres} = query) do
-    where = [{"time", {:expr, to}, :<} | wheres]
-    query
-    |> Map.put(:where, where)
-    |> Map.put(:to, nil)
-  end
+  defp maybe_get_to(%__MODULE__{to: nil}), do: []
+  defp maybe_get_to(%__MODULE__{to: to}),
+    do: [{"time", {:expr, to}, :<}]
 
   defp build_measurement(%__MODULE__{measurements: m})
   when is_list(m) and length(m) > 0 do
