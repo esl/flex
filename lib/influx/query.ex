@@ -266,16 +266,12 @@ defmodule Influx.Query do
   defp build_group_by(%__MODULE__{group_by: nil}), do: {:ok, ""}
   defp build_group_by(%__MODULE__{group_by: "*"}), do: {:ok, " GROUP BY *"}
   defp build_group_by(%__MODULE__{group_by: group_by, where: wheres}) do
-    {valid, invalid} = group_by
-                       |> Enum.map(&parse_group_by(&1, wheres))
-                       |> Enum.split_with(&valid?/1)
-    cond do
-      valid != [] and invalid == [] ->
-        {:ok, " GROUP BY " <> Enum.join(valid, ",")}
-      valid == [] and invalid == [] ->
-        {:ok, ""}
-      true ->
-        {:error, invalid}
+    results = Enum.map(group_by, &parse_group_by(&1, wheres))
+    |> validate()
+    case results do
+      {:ok, []} -> {:ok, ""}
+      {:ok, results} -> {:ok, " GROUP BY " <> Enum.join(results, ",")}
+      error -> error
     end
   end
 
@@ -283,14 +279,20 @@ defmodule Influx.Query do
   defp parse_group_by("time(" <> _ = time, wheres) do
     # we need to check for time condition where clause, becaouse groupping
     # by time in disallowed without giving timerange.
-    case Enum.any?(wheres, fn ({"time", _, _}) -> true
-                              (_)              -> false end) do
-      true -> time
-      false -> {:error, "missing time condition in where statement"}
+    if included_time_condition?(wheres) do
+      time
+    else
+      {:error, "missing time condition in where statement"}
     end
   end
+
   defp parse_group_by(tag, _) when is_binary(tag), do: escape_val(tag, "\"")
   defp parse_group_by(tag, _), do: {:error, tag}
+
+  defp included_time_condition?({"time", _, _}), do: true
+  defp included_time_condition?(wheres) when is_list(wheres),
+    do: Enum.any?(wheres, &included_time_condition?/1)
+  defp included_time_condition?(_), do: false
 
   defp escape_val(val, escape_char) do
     cond do
@@ -315,6 +317,16 @@ defmodule Influx.Query do
 
   defp is_expression?({:expr, _}), do: true
   defp is_expression?(_), do: false
+
+  @spec validate([result :: term | {:error, error :: term}])
+  :: [{:ok, result :: term}] | {:error, [{:error, error :: term}]}
+  defp validate(results) do
+    {valid, invalid} = Enum.split_with(results, &valid?/1)
+    case invalid do
+      [] -> {:ok, valid}
+      _ -> {:error, invalid}
+    end
+  end
 
   defp valid?({:error, _}), do: false
   defp valid?(_), do: true
