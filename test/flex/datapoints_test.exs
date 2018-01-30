@@ -1,7 +1,7 @@
-defmodule Influx.DatapointsTest do
-  use Influx.TestCase
+defmodule Flex.DatapointsTest do
+  use Flex.TestCase
 
-  alias Influx.Datapoints
+  alias Flex.Datapoints
 
   for query_fun <- [&__MODULE__.from_query/3,
                     &__MODULE__.get_tags/3,

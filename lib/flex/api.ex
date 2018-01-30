@@ -1,4 +1,4 @@
-defmodule Influx.API do
+defmodule Flex.API do
   @moduledoc """
   Responsible for interacting with InfluxDB HTTP API.
 
@@ -64,7 +64,7 @@ defmodule Influx.API do
     case check_params(params, required, optional) do
       {:ok, params} ->
         url = form_read_url(query, params)
-        Influx.Stream.new_stream(url)
+        Flex.Stream.new_stream(url)
       error ->
         error
     end
@@ -102,7 +102,7 @@ defmodule Influx.API do
   Optional parameters: `:pretty`
 
   ```
-    iex(1)> Influx.API.write("measurement", [])
+    iex(1)> Flex.API.write("measurement", [])
     {:error, [missing: :db, missing: :epoch, missing: :host]}
   ```
 
@@ -118,10 +118,10 @@ defmodule Influx.API do
   Perform database creation with given name, for given InfluxDB. It expects
   only one parameter - address of InfluxDB API endpoint.
 
-      iex(1)> Influx.API.create_db("my_db", [])
+      iex(1)> Flex.API.create_db("my_db", [])
       {:error, [missing: :host]}
 
-      iex(2)> Influx.API.create_db("my_db", host: "http://localhost:8086")
+      iex(2)> Flex.API.create_db("my_db", host: "http://localhost:8086")
       {:ok, %HTTPoison.Response{ ... }}
 
   Required parameters: `:host`

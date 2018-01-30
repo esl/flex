@@ -1,7 +1,7 @@
-defmodule Influx.QueryTest do
+defmodule Flex.QueryTest do
   use ExUnit.Case
 
-  alias Influx.Query
+  alias Flex.Query
 
   test "Query without measurements is invalid" do
     query1 = %Query{measurements: []}

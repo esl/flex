@@ -1,4 +1,4 @@
-defmodule Influx.Query do
+defmodule Flex.Query do
   @moduledoc """
   This module is used for constructing InfluxDB Queries.
 

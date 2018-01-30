@@ -1,4 +1,4 @@
-defmodule Influx.Datapoints do
+defmodule Flex.Datapoints do
 
   @moduledoc """
   Read and write the Influx line protocol for DB queries

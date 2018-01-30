@@ -1,15 +1,15 @@
-defmodule Influx.Stream do
+defmodule Flex.Stream do
   @moduledoc """
   This module exposes API for wrapping HTTP requests into Stream
   """
 
-  alias Influx.Stream.{Worker, Supervisor}
+  alias Flex.Stream.{Worker, Supervisor}
 
   @doc """
     Returns HTTP response wrapped into Stream.
 
     ## Example
-      iex(1)> Influx.Stream.new_stream("tide-erlang-solutions.com")
+      iex(1)> Flex.Stream.new_stream("tide-erlang-solutions.com")
       #Function<51.122079345/2 in Stream.resource/3>
   """
   @spec new_stream(String.t) :: Enum.t

@@ -1,7 +1,7 @@
-defmodule Influx.Stream.Worker do
+defmodule Flex.Stream.Worker do
   @moduledoc false
   # Worker module for handling chunked HTTP request, used as a backend for
-  # Influx.Stream
+  # Flex.Stream
 
   use GenServer
 

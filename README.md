@@ -1,4 +1,4 @@
-# Influx
+# Flex
 
 A simple InfluxDB client.
 
@@ -9,7 +9,7 @@ Add to your deps
 deps do
   [
     ...
-    {:influx, "~> 0.1"}
+    {:flex, "~> 0.1"}
     ...
   ]
 end
@@ -21,7 +21,7 @@ def application do
   [
     applications: [
       ...
-      :influx,
+      :flex,
       ...
     ],
     ...
