@@ -232,10 +232,18 @@ defmodule Influx.Datapoints do
   defp parse_seria(seria) do
     name = seria["name"]
     keys = seria["columns"]
-    key_values_map = Enum.map(seria["values"],
-                              &(Enum.zip(keys, &1) |> Enum.into(%{})))
+    list_of_maps =
+      Enum.map(seria["values"],
+               fn values -> keys_and_values_to_map(keys, values) end)
     %{"name" => name,
-      "data" => key_values_map}
+      "data" => list_of_maps}
+  end
+
+  @spec keys_and_values_to_map([term], [term]) :: [map]
+  defp keys_and_values_to_map(keys, values) do
+    Enum.zip(keys, values)
+    |> Enum.filter( fn {_, v} -> v != nil end)
+    |> Enum.into(%{})
   end
 
   @spec make_datapoints_values([String.t], [[integer]]) :: [[integer]]
