@@ -5,13 +5,13 @@ defmodule Influx.Stream.Worker do
 
   use GenServer
 
-  @influx_query_timeout 10_000
+  @influx_query_timeout 60_000
 
   # API
 
   @spec get_chunk(pid) :: {:chunk, String.t} | :halt
   def get_chunk(name) do
-    GenServer.call(name, :get_chunk)
+    GenServer.call(name, :get_chunk, @influx_query_timeout)
   end
 
   @spec start_link(String.t) :: GenServer.on_start()
@@ -33,6 +33,7 @@ defmodule Influx.Stream.Worker do
 
   def handle_cast({:initalize, url}, _state) do
     resp = HTTPoison.get!(url, [], [stream_to: self(),
+                                    timeout: @influx_query_timeout,
                                     recv_timeout: @influx_query_timeout])
     {:noreply, %{id: resp.id, chunks: [], more_chunks: true, reply_to: nil}}
   end
