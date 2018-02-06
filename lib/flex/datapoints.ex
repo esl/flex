@@ -39,24 +39,6 @@ defmodule Flex.Datapoints do
 
   @type datapoints_with_tags :: [datapoint_with_tags]
 
-  # TODO: This should be removed, as same extraction can be done
-  # with format_results/1 function.
-  @doc false
-  @spec convert(map) :: map | []
-  def convert(res) do
-    if res["results"] == [%{}] do
-      []
-    else
-      Enum.flat_map(res["results"],
-                    fn(r) -> Enum.map(r["series"],
-                                      fn(s) -> %{"target" => get_name(s),
-                                        "datapoints" => make_datapoints_values(
-                                          s["columns"], s["values"])}
-                                      end)
-                    end)
-    end
-  end
-
   @doc """
   Converts values from valid datapoint to InfluxDB Line Protocol.
 
@@ -209,15 +191,6 @@ defmodule Flex.Datapoints do
   # Private functions
   ###
 
-  @spec get_name(map) :: String.t
-  defp get_name(series) do
-    tags = case series["tags"] do
-             nil -> ""
-             some -> some |> Poison.encode! |> String.replace("\"", " ")
-           end
-    series["name"] <> " " <> tags
-  end
-
   @spec parse_statement(map) :: [map]
   defp parse_statement(%{"error" => msg}),
     do: [%{"name" => "error", "data" => msg}]
@@ -236,23 +209,6 @@ defmodule Flex.Datapoints do
                               &(Enum.zip(keys, &1) |> Enum.into(%{})))
     %{"name" => name,
       "data" => key_values_map}
-  end
-
-  @spec make_datapoints_values([String.t], [[integer]]) :: [[integer]]
-  defp make_datapoints_values([_, "time"], values), do: values
-
-  defp make_datapoints_values(["time", _], values) do
-    Enum.map(values, fn(v) -> Enum.reverse(v) end)
-  end
-
-  defp make_datapoints_values(columns, values) do
-    # We want a metrics in format of [value, timestamp]
-    # but sometimes 'timestamp' column is on first place
-    index = Enum.find_index(columns, fn(x) -> x == "time" end)
-    Enum.map(values, fn(v) ->
-      val = Enum.fetch!(v, index)
-      List.delete_at(v, index) ++ [val]
-    end)
   end
 
   # This is how Line Protocol look like:
