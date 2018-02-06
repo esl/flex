@@ -1,4 +1,4 @@
-defmodule Influx.TestCase do
+defmodule Flex.TestCase do
   @moduledoc """
   This module defines the test case to be used by tests that require interaction
   with InfluxDB
@@ -6,18 +6,18 @@ defmodule Influx.TestCase do
   In order to use this case template, you need to configure address of running
   InfluxDB instance API:
 
-      config :influx,
+      config :flex,
         test_host: "http://localhost:8086"
   """
 
   use ExUnit.CaseTemplate
 
   using do
-    influx_host = Application.get_env(:influx, :test_host)
+    influx_host = Application.get_env(:flex, :test_host)
 
     if is_nil(influx_host) do
       raise ":test_host application env must be set in order to use " <>
-            "Influx.TestCase"
+            "Flex.TestCase"
     end
 
     ping_url = influx_host <> "/ping"
@@ -35,7 +35,7 @@ defmodule Influx.TestCase do
 
   # InfluxDB will be cleared before each test case
   setup do
-    host = Application.get_env(:influx, :test_host)
+    host = Application.get_env(:flex, :test_host)
     db = "test_db"
     measurement_name = "measurement"
     tag = "tag"

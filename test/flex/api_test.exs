@@ -1,7 +1,7 @@
-defmodule Influx.APITest do
-  use Influx.TestCase
+defmodule Flex.APITest do
+  use Flex.TestCase
 
-  alias Influx.{API, Query, Datapoints}
+  alias Flex.{API, Query, Datapoints}
   alias HTTPoison.Response
 
   require Logger

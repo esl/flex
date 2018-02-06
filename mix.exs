@@ -1,9 +1,9 @@
-defmodule Influx.Mixfile do
+defmodule Flex.Mixfile do
   use Mix.Project
 
   def project do
     [
-      app: :influx,
+      app: :flex,
       version: "0.1.0",
       elixir: "~> 1.3",
       build_embedded: Mix.env == :prod,
@@ -15,18 +15,18 @@ defmodule Influx.Mixfile do
   def application do
     [
       applications: [:logger, :httpoison, :poison],
-      mod: {Influx.Application, []}
+      mod: {Flex.Application, []}
     ]
   end
 
   defp deps do
     [
-      {:httpoison, "~> 0.13.0"},
-      {:poison, "~> 2.2"},
-      {:ex_doc, "~> 0.18.1", only: :dev},
-      {:earmark, "~> 1.2.2", only: :dev},
-      {:dialyxir, "~> 0.5.1", only: :dev},
-      {:credo, "~> 0.8.8", only: :dev},
+      {:httpoison, "~> 0.13"},
+      {:poison,    "~> 2.2"},
+      {:ex_doc,    "~> 0.18", only: :dev},
+      {:earmark,   "~> 1.2",  only: :dev},
+      {:dialyxir,  "~> 0.5",  only: :dev},
+      {:credo,     "~> 0.8",  only: :dev},
     ]
   end
 end

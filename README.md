@@ -1,4 +1,4 @@
-# Influx
+# Flex
 
 A simple InfluxDB client.
 
@@ -9,7 +9,7 @@ Add to your deps
 deps do
   [
     ...
-    {:influx, "~> 0.1"}
+    {:flex, "~> 0.1"}
     ...
   ]
 end
@@ -21,10 +21,21 @@ def application do
   [
     applications: [
       ...
-      :influx,
+      :flex,
       ...
     ],
     ...
   ]
 end
 ```
+
+## Test
+
+You'll need Influx serving locally on port 8086 (see `config/config.exs`):
+
+```Shell
+docker pull influxdb && \
+docker run -d -p 8086:8086 -v influxdb:/var/lib/influxdb influxdb
+```
+
+Then go for a `mix test`.

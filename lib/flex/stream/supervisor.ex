@@ -1,10 +1,10 @@
-defmodule Influx.Stream.Supervisor do
+defmodule Flex.Stream.Supervisor do
   @moduledoc false
-  # Supervisor for Influx HTTP Stream backend GenServers
+  # Supervisor for Flex HTTP Stream backend GenServers
 
   use Supervisor
 
-  alias Influx.Stream.Worker
+  alias Flex.Stream.Worker
 
   # API functions
 

@@ -1,4 +1,4 @@
-defmodule Influx.Application do
+defmodule Flex.Application do
   @moduledoc false
 
   use Application
@@ -7,10 +7,10 @@ defmodule Influx.Application do
     import Supervisor.Spec, warn: false
 
     children = [
-      supervisor(Influx.Stream.Supervisor, [])
+      supervisor(Flex.Stream.Supervisor, [])
     ]
 
-    opts = [strategy: :one_for_one, name: Influx.Supervisor]
+    opts = [strategy: :one_for_one, name: Flex.Supervisor]
     Supervisor.start_link(children, opts)
   end
 end
