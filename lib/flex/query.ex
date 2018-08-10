@@ -69,7 +69,7 @@ defmodule Flex.Query do
                   to: "now() - 1w"}
           |> Query.build_query
   {:ok, "SELECT * FROM \\"tdd\\" WHERE time > now() - 2w and time < now() - 1w"}
- ```
+  ```
   ## group by
   It expects a list of fields, which response should be groupped by.
 
@@ -227,7 +227,10 @@ defmodule Flex.Query do
                        |> Enum.split_with(&valid?/1)
     cond do
       valid != [] and invalid == [] ->
-        {:ok, " GROUP BY " <> Enum.join(valid, ",")}
+        case maybe_join_tags(valid, ",") do
+          {:ok, joined_tags} -> {:ok, " GROUP BY " <> joined_tags}
+          {:error, _} = error -> error
+        end
       valid == [] and invalid == [] ->
         {:ok, ""}
       true ->
@@ -235,15 +238,18 @@ defmodule Flex.Query do
     end
   end
 
-  # GROUP BY time(<time_interval>),[tag_key]
+  # GROUP BY time(<time_interval>),[tag_key] [fill(<fill_option>)]
   defp parse_group_by("time(" <> _ = time, wheres) do
-    # we need to check for time condition where clause, becaouse groupping
-    # by time in disallowed without giving timerange.
+    # we need to check for time condition where clause because grouping
+    # by time is disallowed without giving timerange.
     case Enum.any?(wheres, fn ({"time", _, _}) -> true
                               (_)              -> false end) do
       true -> time
       false -> {:error, "missing time condition in where statement"}
     end
+  end
+  defp parse_group_by("fill(" <> _ = fill, _) do
+    fill
   end
   defp parse_group_by(tag, _) when is_binary(tag), do: escape_val(tag, "\"")
   defp parse_group_by(tag, _), do: {:error, tag}
@@ -255,6 +261,56 @@ defmodule Flex.Query do
       is_expression?(val) -> val
       true -> "#{escape_char}#{val}#{escape_char}"
     end
+  end
+
+  defp maybe_join_tags(tags, joiner) do
+    case is_fill_tag_present?(tags) do
+      true ->
+        join_tags_with_fill_tag(tags, joiner)
+      false ->
+        join_tags_without_fill_tag(tags, joiner)
+    end
+  end
+
+  defp join_tags_with_fill_tag(tags, joiner) do
+    case fill_tag_in_valid_position?(tags) do
+      true -> finally_join_tags(tags, joiner)
+      false ->
+        {:error, "[fill(<fill_option>)] expression is required to go at the end"
+         <> " of GROUP BY clause"}
+    end
+  end
+
+  defp is_fill_tag_present?(tags) do
+    Enum.any?(tags, fn(tag) -> is_fill_tag?(tag) end)
+  end
+
+  defp is_fill_tag?(tag) do
+    String.starts_with?(tag, "fill(")
+  end
+
+  defp fill_tag_in_valid_position?(tags) do
+    List.last(tags)
+    |> is_fill_tag?
+  end
+
+  defp join_tags_without_fill_tag(tags, joiner) do
+    finally_join_tags(tags, joiner)
+  end
+
+  defp finally_join_tags(tags, joiner) do
+    joined_tags = Enum.reduce(tags, "", fn(tag, acc) -> finally_join_tags(tag, joiner, acc) end)
+    {:ok, joined_tags}
+  end
+
+  defp finally_join_tags(tag, _, "") do
+    tag
+  end
+  defp finally_join_tags("fill(" <> _ = fill, _, joined_tags) do
+    joined_tags <> " " <> fill
+  end
+  defp finally_join_tags(tag, joiner, joined_tags) do
+    joined_tags <> joiner <> tag
   end
 
   @duration_units ["u", "µ", "ms", "s", "m", "h", "d", "w"]

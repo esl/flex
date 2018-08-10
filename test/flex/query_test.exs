@@ -112,4 +112,19 @@ defmodule Flex.QueryTest do
     assert [_, group_by_clause] = String.split(query, "GROUP BY ")
     assert "time(2d)" = group_by_clause
   end
+
+  test "Fill is required to be the last tag in GROUP BY clause" do
+    query_valid = %Query{fields: ["f1", "f2"],
+                         measurements: ["m"],
+                         group_by: ["time(5m)", "sample_tag", "fill(null)"],
+                         from: "now() - 2d",
+                         to: "now() - 1d"}
+    query_invalid = %Query{fields: ["f1", "f2"],
+                           measurements: ["m"],
+                           group_by: ["time(5m)", "fill(null)", "sample_tag"],
+                           from: "now() - 2d",
+                           to: "now() - 1d"}
+    assert {:ok, _} = Query.build_query(query_valid)
+    assert {:error, _} = Query.build_query(query_invalid)
+  end
 end
