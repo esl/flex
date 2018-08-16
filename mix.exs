@@ -5,7 +5,7 @@ defmodule Flex.Mixfile do
     [
       app: :flex,
       version: "0.2.0",
-      elixir: "~> 1.3",
+      elixir: "~> 1.6",
       build_embedded: Mix.env == :prod,
       start_permanent: Mix.env == :prod,
       deps: deps()
