@@ -289,7 +289,7 @@ defmodule Flex.APITest do
     # when
     stream = API.stream(query, params)
     # then
-    assert catch_exit(Stream.run(stream)) == :noproc
+    assert {:noproc, _} = catch_exit(Stream.run(stream))
   end
 
   defp extract_field_from_datapoints(datapoints, field) do
