@@ -223,14 +223,11 @@ defmodule Flex.Query do
   defp build_group_by(%__MODULE__{group_by: "*"}), do: {:ok, " GROUP BY *"}
   defp build_group_by(%__MODULE__{group_by: group_by, where: wheres}) do
     {valid, invalid} = group_by
-                       |> Enum.map(&parse_group_by(&1, wheres))
+                       |> parse_group_by(wheres)
                        |> Enum.split_with(&valid?/1)
     cond do
       valid != [] and invalid == [] ->
-        case maybe_join_tags(valid, ",") do
-          {:ok, joined_tags} -> {:ok, " GROUP BY " <> joined_tags}
-          {:error, _} = error -> error
-        end
+        {:ok, " GROUP BY " <> join_tags(valid, ",")}
       valid == [] and invalid == [] ->
         {:ok, ""}
       true ->
@@ -239,20 +236,44 @@ defmodule Flex.Query do
   end
 
   # GROUP BY time(<time_interval>),[tag_key] [fill(<fill_option>)]
-  defp parse_group_by("time(" <> _ = time, wheres) do
+  defp parse_group_by(to_parse, wheres) do
+    parse_group_by(to_parse, [], wheres)
+  end
+
+  defp parse_group_by([], parsed_to_reverse, _) do
+    Enum.reverse(parsed_to_reverse)
+  end
+  defp parse_group_by(["time(" <> _ = time | to_parse], parsed_to_reverse, wheres) do
     # we need to check for time condition where clause because grouping
     # by time is disallowed without giving timerange.
-    case Enum.any?(wheres, fn ({"time", _, _}) -> true
-                              (_)              -> false end) do
-      true -> time
-      false -> {:error, "missing time condition in where statement"}
-    end
+    checked_time =
+      case Enum.any?(wheres, fn ({"time", _, _}) -> true
+                                (_)              -> false end) do
+        true -> time
+        false -> {:error, "missing time condition in where statement"}
+      end
+    new_parsed_to_reverse = [checked_time | parsed_to_reverse]
+    parse_group_by(to_parse, new_parsed_to_reverse, wheres)
   end
-  defp parse_group_by("fill(" <> _ = fill, _) do
-    fill
+  defp parse_group_by(["fill(" <> _ = fill | []] = whole, parsed_to_reverse, wheres) do
+    # we need to check if fill is passed as the last element in group by tags
+    new_parsed_to_reverse = [fill | parsed_to_reverse]
+    parse_group_by([], new_parsed_to_reverse, wheres)
   end
-  defp parse_group_by(tag, _) when is_binary(tag), do: escape_val(tag, "\"")
-  defp parse_group_by(tag, _), do: {:error, tag}
+  defp parse_group_by(["fill(" <> _ | to_parse], parsed_to_reverse, wheres) do
+    error = {:error, "[fill(<fill_option>)] expression is required to go at the"
+     <> " end of GROUP BY clause"}
+    new_parsed_to_reverse = [error | parsed_to_reverse]
+    parse_group_by(to_parse, new_parsed_to_reverse, wheres)
+  end
+  defp parse_group_by([tag | to_parse], parsed_to_reverse, wheres) when is_binary(tag) do
+    new_parsed_to_reverse =  [escape_val(tag, "\"") | parsed_to_reverse]
+    parse_group_by(to_parse, new_parsed_to_reverse, wheres)
+  end
+  defp parse_group_by([tag | to_parse], parsed_to_reverse, wheres) do
+    new_parsed_to_reverse =  [{:error, tag} | parsed_to_reverse]
+    parse_group_by(to_parse, new_parsed_to_reverse, wheres)
+  end
 
   defp escape_val(val, escape_char) do
     cond do
@@ -263,54 +284,18 @@ defmodule Flex.Query do
     end
   end
 
-  defp maybe_join_tags(tags, joiner) do
-    case is_fill_tag_present?(tags) do
-      true ->
-        join_tags_with_fill_tag(tags, joiner)
-      false ->
-        join_tags_without_fill_tag(tags, joiner)
-    end
+  defp join_tags(tags, default_joiner) do
+    Enum.reduce(tags, "", fn(tag, acc) -> join_tags(tag, default_joiner, acc) end)
   end
 
-  defp join_tags_with_fill_tag(tags, joiner) do
-    case fill_tag_in_valid_position?(tags) do
-      true -> finally_join_tags(tags, joiner)
-      false ->
-        {:error, "[fill(<fill_option>)] expression is required to go at the end"
-         <> " of GROUP BY clause"}
-    end
-  end
-
-  defp is_fill_tag_present?(tags) do
-    Enum.any?(tags, fn(tag) -> is_fill_tag?(tag) end)
-  end
-
-  defp is_fill_tag?(tag) do
-    String.starts_with?(tag, "fill(")
-  end
-
-  defp fill_tag_in_valid_position?(tags) do
-    List.last(tags)
-    |> is_fill_tag?
-  end
-
-  defp join_tags_without_fill_tag(tags, joiner) do
-    finally_join_tags(tags, joiner)
-  end
-
-  defp finally_join_tags(tags, joiner) do
-    joined_tags = Enum.reduce(tags, "", fn(tag, acc) -> finally_join_tags(tag, joiner, acc) end)
-    {:ok, joined_tags}
-  end
-
-  defp finally_join_tags(tag, _, "") do
+  defp join_tags(tag, _, "") do
     tag
   end
-  defp finally_join_tags("fill(" <> _ = fill, _, joined_tags) do
+  defp join_tags("fill(" <> _ = fill, _, joined_tags) do
     joined_tags <> " " <> fill
   end
-  defp finally_join_tags(tag, joiner, joined_tags) do
-    joined_tags <> joiner <> tag
+  defp join_tags(tag, default_joiner, joined_tags) do
+    joined_tags <> default_joiner <> tag
   end
 
   @duration_units ["u", "µ", "ms", "s", "m", "h", "d", "w"]
