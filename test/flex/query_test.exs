@@ -55,11 +55,12 @@ defmodule Flex.QueryTest do
 
   for unit <- ["u", "µ", "ms", "s", "m", "h", "d", "w"] do
     test "Duration unit '#{unit}' is not escaped" do
+      time_value = "20" <> unquote(unit)
       query = %Query{measurements: ["m"],
-                     where: [{"time", "20#{unquote(unit)}", :<}]}
+                     where: [{"time", time_value, :<}]}
 
       assert {:ok, query} = Query.build_query(query)
-      assert [_, "time < 20#{unquote(unit)}"] = String.split(query, "WHERE ")
+      assert [_, "time < " <> ^time_value] = String.split(query, "WHERE ")
     end
   end
 
