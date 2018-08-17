@@ -74,7 +74,7 @@ defmodule Flex.Query do
   It expects a list of fields, which response should be groupped by.
 
   Response could be also groupped by time, however InfluxDB API requires to
-  put time limits in WHERE clouse
+  put time limits in WHERE clause
 
   ```
   iex(1)> %Query{measurements: ["tdd"],
@@ -82,6 +82,20 @@ defmodule Flex.Query do
                   group_by: ["time(2d)"]}
           |> Query.build_query
   {:ok, "SELECT * FROM \\"tdd\\" WHERE time > now() - 2w GROUP BY time(2d)"}
+  ```
+
+  Response lacking for given time interval while using time(<time_interval>)
+  can be fill with user defined values. Add [fill(<fill_option>)] to `group_by`
+  list in a Query struct with one of the fill_options: any numerical value, `null`,
+  `none`, `previous`, `linear`.
+
+  ```
+  iex(1)> %Query{measurements: ["tdd"],
+  from: "now() - 2w",
+  group_by: ["time(2d)", fill(previous)]}
+  |> Query.build_query
+  {:ok,
+  "SELECT * FROM \"tdd\" WHERE time > now() - 2w GROUP BY time(2d) fill(previous)"}
   ```
 
   """
@@ -223,11 +237,11 @@ defmodule Flex.Query do
   defp build_group_by(%__MODULE__{group_by: "*"}), do: {:ok, " GROUP BY *"}
   defp build_group_by(%__MODULE__{group_by: group_by, where: wheres}) do
     {valid, invalid} = group_by
-                       |> parse_group_by(wheres)
+                       |> Enum.map(&parse_group_by(&1, wheres))
                        |> Enum.split_with(&valid?/1)
     cond do
       valid != [] and invalid == [] ->
-        {:ok, " GROUP BY " <> join_tags(valid, ",")}
+        {:ok, " GROUP BY " <> join_group_by(valid)}
       valid == [] and invalid == [] ->
         {:ok, ""}
       true ->
@@ -236,44 +250,24 @@ defmodule Flex.Query do
   end
 
   # GROUP BY time(<time_interval>),[tag_key] [fill(<fill_option>)]
-  defp parse_group_by(to_parse, wheres) do
-    parse_group_by(to_parse, [], wheres)
-  end
-
-  defp parse_group_by([], parsed_to_reverse, _) do
-    Enum.reverse(parsed_to_reverse)
-  end
-  defp parse_group_by(["time(" <> _ = time | to_parse], parsed_to_reverse, wheres) do
+  defp parse_group_by("time(" <> _ = time, wheres) do
     # we need to check for time condition where clause because grouping
     # by time is disallowed without giving timerange.
-    checked_time =
-      case Enum.any?(wheres, fn ({"time", _, _}) -> true
-                                (_)              -> false end) do
-        true -> time
-        false -> {:error, "missing time condition in where statement"}
-      end
-    new_parsed_to_reverse = [checked_time | parsed_to_reverse]
-    parse_group_by(to_parse, new_parsed_to_reverse, wheres)
+    case Enum.any?(wheres, fn ({"time", _, _}) -> true
+                              (_)              -> false end) do
+      true -> time
+      false -> {:error, "missing time condition in where statement"}
+    end
   end
-  defp parse_group_by(["fill(" <> _ = fill | []] = whole, parsed_to_reverse, wheres) do
-    # we need to check if fill is passed as the last element in group by tags
-    new_parsed_to_reverse = [fill | parsed_to_reverse]
-    parse_group_by([], new_parsed_to_reverse, wheres)
+  defp parse_group_by("fill(" <> _ = fill, _) do
+    case valid_fill_opt?(fill) do
+      true -> fill
+      false -> {:error, "fill requires given opt: any numerical value, `null`, "
+                <> "`none`, `previous`, `linear`"}
+    end
   end
-  defp parse_group_by(["fill(" <> _ | to_parse], parsed_to_reverse, wheres) do
-    error = {:error, "[fill(<fill_option>)] expression is required to go at the"
-     <> " end of GROUP BY clause"}
-    new_parsed_to_reverse = [error | parsed_to_reverse]
-    parse_group_by(to_parse, new_parsed_to_reverse, wheres)
-  end
-  defp parse_group_by([tag | to_parse], parsed_to_reverse, wheres) when is_binary(tag) do
-    new_parsed_to_reverse =  [escape_val(tag, "\"") | parsed_to_reverse]
-    parse_group_by(to_parse, new_parsed_to_reverse, wheres)
-  end
-  defp parse_group_by([tag | to_parse], parsed_to_reverse, wheres) do
-    new_parsed_to_reverse =  [{:error, tag} | parsed_to_reverse]
-    parse_group_by(to_parse, new_parsed_to_reverse, wheres)
-  end
+  defp parse_group_by(tag, _) when is_binary(tag), do: escape_val(tag, "\"")
+  defp parse_group_by(tag, _), do: {:error, tag}
 
   defp escape_val(val, escape_char) do
     cond do
@@ -284,18 +278,39 @@ defmodule Flex.Query do
     end
   end
 
-  defp join_tags(tags, default_joiner) do
-    Enum.reduce(tags, "", fn(tag, acc) -> join_tags(tag, default_joiner, acc) end)
+  @fill_opts ["linear", "none", "null", "previous"]
+  defp valid_fill_opt?("fill(" <> temp_opt) do
+    [opt, ""] = String.split(temp_opt, ")")
+    opt in @fill_opts
+    or number?(opt)
   end
 
-  defp join_tags(tag, _, "") do
+  defp number?(opt) do
+    case Float.parse(opt) do
+      {_number, ""} -> true
+      _             -> false
+    end
+  end
+
+  defp join_group_by(group_by) do
+    # fill is required to be at the end of group_by list
+    {fill, rest} = Enum.split_with(group_by, &fill?/1)
+    group_by = rest ++ fill
+    Enum.reduce(group_by, "", fn(arg, acc) -> join_tags(arg, acc) end)
+  end
+
+  defp fill?(tag) do
+    String.starts_with?(tag, "fill(")
+  end
+
+  defp join_tags(tag, "") do
     tag
   end
-  defp join_tags("fill(" <> _ = fill, _, joined_tags) do
+  defp join_tags("fill(" <> _ = fill, joined_tags) do
     joined_tags <> " " <> fill
   end
-  defp join_tags(tag, default_joiner, joined_tags) do
-    joined_tags <> default_joiner <> tag
+  defp join_tags(tag, joined_tags) do
+    joined_tags <> "," <> tag
   end
 
   @duration_units ["u", "µ", "ms", "s", "m", "h", "d", "w"]
@@ -315,5 +330,5 @@ defmodule Flex.Query do
 
   defp valid?({:error, _}), do: false
   defp valid?(_), do: true
-
 end
+
