@@ -125,7 +125,7 @@ defmodule Flex.QueryTest do
   end
 
   for opt <- ["10", "10.1", "null", "none", "previous", "linear"] do
-    test "Fill option is '#{opt}'" do
+    test "GROUP BY query is properly built, when fill option is '#{opt}'." do
       fill = "fill(" <> unquote(opt) <> ")"
       query = %Query{fields: ["f1"],
                      measurements: ["m"],

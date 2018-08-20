@@ -84,8 +84,8 @@ defmodule Flex.Query do
   {:ok, "SELECT * FROM \\"tdd\\" WHERE time > now() - 2w GROUP BY time(2d)"}
   ```
 
-  Response lacking for given time interval while using time(<time_interval>)
-  can be fill with user defined values. Add [fill(<fill_option>)] to `group_by`
+  Response lacking datapoints for given time range while using time(<time_interval>)
+  can be filled with user defined values. Add [fill(<fill_option>)] to `group_by`
   list in a Query struct with one of the fill_options: any numerical value, `null`,
   `none`, `previous`, `linear`.
 
@@ -296,7 +296,7 @@ defmodule Flex.Query do
     # fill is required to be at the end of group_by list
     {fill, rest} = Enum.split_with(group_by, &fill?/1)
     group_by = rest ++ fill
-    Enum.reduce(group_by, "", fn(arg, acc) -> join_tags(arg, acc) end)
+    Enum.reduce(group_by, "", &join_tags/2)
   end
 
   defp fill?(tag) do
