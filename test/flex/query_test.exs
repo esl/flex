@@ -97,7 +97,7 @@ defmodule Flex.QueryTest do
     assert "\"node\"" = group_by_clause
   end
 
-  test "GROUP BY time is incorrent, when there is no WHERE time condition" do
+  test "GROUP BY time is incorrect, when there is no WHERE time condition" do
     query = %Query{measurements: ["m"],
                    group_by: ["time(2d)"]}
 
@@ -112,5 +112,37 @@ defmodule Flex.QueryTest do
     assert {:ok, query} = Query.build_query(query)
     assert [_, group_by_clause] = String.split(query, "GROUP BY ")
     assert "time(2d)" = group_by_clause
+  end
+
+  test "GROUP BY fill is correct even if is not the last element of group_by list" do
+    query = %Query{fields: ["f1"],
+                   measurements: ["m"],
+                   group_by: ["time(2d)", "fill(null)", "sample_tag"],
+                   from: "now() - 2d",
+                   to: "now() - 1d"}
+    assert {:ok, query} = Query.build_query(query)
+    assert String.ends_with?(query, "fill(null)")
+  end
+
+  for opt <- ["10", "10.1", "null", "none", "previous", "linear"] do
+    test "GROUP BY query is properly built, when fill option is '#{opt}'." do
+      fill = "fill(" <> unquote(opt) <> ")"
+      query = %Query{fields: ["f1"],
+                     measurements: ["m"],
+                     group_by: ["time(5m)", fill],
+                     from: "now() - 2d",
+                     to: "now() - 1d"}
+      assert {:ok, query} = Query.build_query(query)
+      assert String.ends_with?(query, fill)
+    end
+  end
+
+  test "GROUP BY fill is incorrect when fill option is not valid" do
+    query = %Query{fields: ["f1"],
+                   measurements: ["m"],
+                   group_by: ["time(2d)", "fill(invalid_opt)"],
+                   from: "now() - 2d",
+                   to: "now() - 1d"}
+    assert {:error, _} = Query.build_query(query)
   end
 end
