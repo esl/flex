@@ -120,8 +120,7 @@ defmodule Flex.QueryTest do
                    from: "now() - 2d",
                    to: "now() - 1d"}
     assert {:ok, query} = Query.build_query(query)
-    assert [_, group_by_clause] = String.split(query, "GROUP BY ")
-    assert String.ends_with?(group_by_clause, "fill(null)")
+    assert String.ends_with?(query, "fill(null)")
   end
 
   for opt <- ["10", "10.1", "null", "none", "previous", "linear"] do
@@ -133,8 +132,7 @@ defmodule Flex.QueryTest do
                      from: "now() - 2d",
                      to: "now() - 1d"}
       assert {:ok, query} = Query.build_query(query)
-      assert [_, group_by_clause] = String.split(query, "GROUP BY ")
-      assert "time(5m) " <> fill == group_by_clause
+      assert String.ends_with?(query, fill)
     end
   end
 
