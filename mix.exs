@@ -21,7 +21,7 @@ defmodule Flex.Mixfile do
 
   defp deps do
     [
-      {:httpoison, "~> 0.13"},
+      {:httpoison, "~> 1.3"},
       {:poison,    "~> 2.2"},
       {:ex_doc,    "~> 0.18", only: :dev},
       {:earmark,   "~> 1.2",  only: :dev},
