@@ -186,6 +186,7 @@ defmodule Flex.Datapoints do
   defp do_escape_field(value, _) when is_float(value) or is_boolean(value),
     do: "#{value}"
   defp do_escape_field(value, _) when is_binary(value), do: "\"#{value}\""
+  defp do_escape_field(nil, _), do: "0"
 
   ###
   # Private functions
