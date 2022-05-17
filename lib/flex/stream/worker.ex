@@ -34,35 +34,37 @@ defmodule Flex.Stream.Worker do
   def handle_cast({:initalize, url}, _state) do
     resp = HTTPoison.get!(url, [], [stream_to: self(),
                                     recv_timeout: @influx_query_timeout])
-    {:noreply, %{id: resp.id, chunks: [], more_chunks: true, reply_to: nil}}
+    {:noreply, %{id: resp.id, chunks: :queue.new(), more_chunks: true, reply_to: nil}}
   end
 
-  # Server is replaying with chunk, if there is any in accumulator
-  def handle_call(:get_chunk, _from, %{chunks: [c | cs]} = state) do
-    state = %{state | chunks: cs}
-    response = {:chunk, c}
+  # Server is replying with chunk, if there is any in accumulator
+  def handle_call(:get_chunk, _from, %{chunks: chunks} = state) when chunks != {[], []} do
+    {{:value, chunk}, chunks} = :queue.out(chunks)
+    state = %{state | chunks: chunks}
+    response = {:chunk, chunk}
     {:reply, response, state}
   end
 
   # Server is not replaying, as there is no chunks in accumulator. However
   # we know that there will be more chunks, as we did not received
-  # %HTTPostion.AsyncEnd yet
-  def handle_call(:get_chunk, from, %{chunks: [], more_chunks: true} = state) do
+  # %HTTPoison.AsyncEnd yet
+  def handle_call(:get_chunk, from, %{chunks: {[], []}, more_chunks: true} = state) do
     state = %{state | reply_to: from}
     {:noreply, state}
   end
 
   # Server is replaying with `:halt` atom to indicate there will be no more
-  # chunks. We know that, because we received %HTTPostion.AsyncEnd
-  def handle_call(:get_chunk, _from,
-                  %{chunks: [], more_chunks: false} = state) do
+  # chunks. We know that, because we received %HTTPoison.AsyncEnd
+  def handle_call(:get_chunk, _from, %{chunks: {[], []}, more_chunks: false} = state) do
     {:reply, :halt, state}
   end
 
   # Server acumulates new chunk, when there is no client demending chunk.
-  def handle_info(%HTTPoison.AsyncChunk{id: id, chunk: chunk},
-                  %{id: id, reply_to: nil} = state) do
-    {:noreply, %{state | chunks: [chunk | state.chunks]}}
+  def handle_info(
+        %HTTPoison.AsyncChunk{id: id, chunk: chunk},
+        %{id: id, reply_to: nil} = state
+      ) do
+    {:noreply, %{state | chunks: :queue.in(chunk, state.chunks)}}
   end
 
   # Server do not accumulate new chunk, where there is client waiting for
@@ -84,7 +86,7 @@ defmodule Flex.Stream.Worker do
   # client waiting for response we replay with `:halt` to indicate there will be
   # no more chunks.
   def handle_info(%HTTPoison.AsyncEnd{id: id},
-                  %{id: id, chunks: [], reply_to: pid} = state) do
+                  %{id: id, chunks: {[], []}, reply_to: pid} = state) do
     GenServer.reply(pid, :halt)
     state = %{state | more_chunks: false, reply_to: nil}
     {:noreply, state}
